@@ -4,7 +4,10 @@ const NAV = [
   { key: 'pending', label: '確認待ちのプラン', shape: 'icosahedron' },
   { key: 'generate', label: 'プラン生成', shape: 'octahedron' },
   { key: 'students', label: '生徒一覧', shape: 'dodecahedron' },
+  { key: 'units', label: '単元メタ情報', shape: 'cube' },
   { key: 'materials', label: '教材', shape: 'tetrahedron' },
+  { key: 'videos', label: '動画', shape: 'cylinder' },
+  { key: 'questions', label: '確認問題', shape: 'cone' },
 ]
 
 export function AdminShell({ current, onNavigate, onLogout, children }) {

@@ -10,6 +10,9 @@ const SHAPES = {
   tetrahedron: (r) => new THREE.TetrahedronGeometry(r, 0),
   dodecahedron: (r) => new THREE.DodecahedronGeometry(r, 0),
   torus: (r) => new THREE.TorusGeometry(r * 0.72, r * 0.3, 10, 24),
+  cube: (r) => new THREE.BoxGeometry(r * 1.2, r * 1.2, r * 1.2),
+  cylinder: (r) => new THREE.CylinderGeometry(r * 0.75, r * 0.75, r * 1.3, 16),
+  cone: (r) => new THREE.ConeGeometry(r * 0.85, r * 1.4, 12),
 }
 
 // カード内で使う小さな回転する3Dアイコン。Scene3Dと同じ紺+ゴールドの言語を保つ。
