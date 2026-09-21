@@ -60,6 +60,7 @@ export function PendingPage({ password }) {
     for (const d of data) {
       initialEdits[d.id] = {
         goalText: d.goal_text ?? '',
+        changeReason: d.change_reason ?? '',
         tasks: (d.tasks ?? []).map((t) => ({
           key: t.id,
           description: t.description,
@@ -78,6 +79,10 @@ export function PendingPage({ password }) {
 
   function updateGoal(id, goalText) {
     setEdits((prev) => ({ ...prev, [id]: { ...prev[id], goalText } }))
+  }
+
+  function updateReason(id, changeReason) {
+    setEdits((prev) => ({ ...prev, [id]: { ...prev[id], changeReason } }))
   }
 
   function updateTask(id, index, task) {
@@ -102,10 +107,11 @@ export function PendingPage({ password }) {
   async function handleConfirm(id) {
     setBusyId(id)
     try {
-      const { goalText, tasks } = edits[id]
+      const { goalText, changeReason, tasks } = edits[id]
       await callAdminApi(password, 'confirm_plan', {
         planId: id,
         goalText,
+        changeReason,
         tasks: tasks
           .filter((t) => t.description.trim())
           .map((t, i) => ({
@@ -116,8 +122,8 @@ export function PendingPage({ password }) {
           })),
       })
       await load()
-    } catch {
-      alert('確定に失敗しました。')
+    } catch (err) {
+      alert(err.message || '確定に失敗しました。')
     }
     setBusyId(null)
   }
@@ -149,6 +155,17 @@ export function PendingPage({ password }) {
                 value={edits[d.id]?.goalText ?? ''}
                 onChange={(e) => updateGoal(d.id, e.target.value)}
               />
+            </div>
+            <div className="form-group">
+              <label htmlFor={`reason-${d.id}`}>先週からの計画変更理由（生徒に公開）</label>
+              <textarea
+                id={`reason-${d.id}`}
+                rows={3}
+                value={edits[d.id]?.changeReason ?? ''}
+                onChange={(e) => updateReason(d.id, e.target.value)}
+                required
+              />
+              <small>演習結果に裏付けのない変化・志望校の出題断定がないか確認してください。</small>
             </div>
             <div className="form-group">
               <label>タスク(単元 / やること / 目安時間)</label>

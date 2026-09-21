@@ -75,6 +75,10 @@ export function GeneratePage({ password }) {
               <span className="plan-goal-label">今週の目標(案)</span>
               {result.goal_text}
             </div>
+            <div className="plan-goal" style={{ marginTop: 12 }}>
+              <span className="plan-goal-label">計画変更の理由(案)</span>
+              {result.change_reason}
+            </div>
             <ul style={{ margin: '12px 0 0', paddingLeft: 20 }}>
               {result.tasks.map((t) => (
                 <li key={t.id} style={{ marginBottom: 6 }}>
