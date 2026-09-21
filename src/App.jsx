@@ -8,6 +8,8 @@ import { AdminMaterialsPage } from './pages/AdminMaterialsPage'
 import { UnitsAdminPage } from './pages/UnitsAdminPage'
 import { VideosAdminPage } from './pages/VideosAdminPage'
 import { QuestionsAdminPage } from './pages/QuestionsAdminPage'
+import { ProgramsAdminPage } from './pages/ProgramsAdminPage'
+import { StudentEnrollmentsPage } from './pages/StudentEnrollmentsPage'
 
 function App() {
   const [password, setPassword] = useState(() => sessionStorage.getItem('admin_password'))
@@ -29,6 +31,8 @@ function App() {
     pending: <PendingPage password={password} />,
     generate: <GeneratePage password={password} />,
     students: <StudentsPage password={password} />,
+    enrollments: <StudentEnrollmentsPage password={password} />,
+    programs: <ProgramsAdminPage password={password} />,
     units: <UnitsAdminPage password={password} />,
     materials: <AdminMaterialsPage password={password} />,
     videos: <VideosAdminPage password={password} />,

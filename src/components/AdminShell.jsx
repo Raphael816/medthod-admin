@@ -4,6 +4,8 @@ const NAV = [
   { key: 'pending', label: '確認待ちのプラン', shape: 'icosahedron' },
   { key: 'generate', label: 'プラン生成', shape: 'octahedron' },
   { key: 'students', label: '生徒一覧', shape: 'dodecahedron' },
+  { key: 'enrollments', label: '受講管理', shape: 'torus' },
+  { key: 'programs', label: 'プログラム管理', shape: 'dodecahedron' },
   { key: 'units', label: '単元メタ情報', shape: 'cube' },
   { key: 'materials', label: '教材', shape: 'tetrahedron' },
   { key: 'videos', label: '動画', shape: 'cylinder' },
