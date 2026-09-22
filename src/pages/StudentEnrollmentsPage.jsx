@@ -13,6 +13,10 @@ const ACTION_LABEL = {
   override_removed: '個別機能の設定を解除',
 }
 
+function isExpired(expiresAt) {
+  return !!expiresAt && new Date(expiresAt) <= new Date()
+}
+
 function blankEnrollmentForm(programs) {
   return {
     id: null,
@@ -20,11 +24,16 @@ function blankEnrollmentForm(programs) {
     status: 'active',
     startsAt: new Date().toISOString().slice(0, 10),
     endsAt: '',
+    reason: '',
     notes: '',
   }
 }
 
-function EnrollmentForm({ programs, form, onChange, onSave, onCancel, saving }) {
+function programName(programs, id) {
+  return programs.find((p) => p.id === id)?.name ?? '(不明なプログラム)'
+}
+
+function EnrollmentForm({ programs, form, onChange, onReview, onCancel }) {
   return (
     <div className="card" style={{ background: 'var(--bg)' }}>
       <div className="form-row">
@@ -56,14 +65,42 @@ function EnrollmentForm({ programs, form, onChange, onSave, onCancel, saving }) 
         </div>
       </div>
       <div className="form-group">
-        <label htmlFor="enr-notes">変更理由・内部メモ</label>
+        <label htmlFor="enr-reason">変更理由(必須・監査ログに記録されます)</label>
+        <input id="enr-reason" type="text" value={form.reason} onChange={(e) => onChange({ ...form, reason: e.target.value })} />
+      </div>
+      <div className="form-group">
+        <label htmlFor="enr-notes">内部メモ(任意)</label>
         <textarea id="enr-notes" rows={2} value={form.notes} onChange={(e) => onChange({ ...form, notes: e.target.value })} />
       </div>
       <div style={{ display: 'flex', gap: 8 }}>
-        <button className="btn btn-primary btn-sm" onClick={onSave} disabled={saving}>
-          {saving ? '保存中...' : '保存'}
+        <button className="btn btn-primary btn-sm" onClick={onReview} disabled={!form.reason.trim() || !form.programId}>
+          変更内容を確認する
         </button>
         <button className="btn btn-outline btn-sm" onClick={onCancel}>キャンセル</button>
+      </div>
+    </div>
+  )
+}
+
+function EnrollmentConfirm({ programs, form, onConfirm, onBack, saving }) {
+  return (
+    <div className="card" style={{ background: 'rgba(201,161,90,0.08)', border: '1px solid var(--gold)' }}>
+      <p className="plan-goal-label" style={{ marginBottom: 10 }}>この内容で保存します</p>
+      <ul style={{ margin: '0 0 16px', paddingLeft: 20, fontSize: '0.9rem' }}>
+        <li>プログラム: <strong>{programName(programs, form.programId)}</strong></li>
+        <li>ステータス: <strong>{STATUS_LABEL[form.status]}</strong></li>
+        <li>開始日: {form.startsAt || '未設定'} / 終了日: {form.endsAt || '未設定'}</li>
+        <li>変更理由: {form.reason}</li>
+        {form.notes && <li>内部メモ: {form.notes}</li>}
+      </ul>
+      <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginBottom: 16 }}>
+        ステータスを「有効」にする場合、既存の有効な受講プログラムは自動的に終了扱いになります。
+      </p>
+      <div style={{ display: 'flex', gap: 8 }}>
+        <button className="btn btn-primary btn-sm" onClick={onConfirm} disabled={saving}>
+          {saving ? '保存中...' : 'この内容で保存する'}
+        </button>
+        <button className="btn btn-outline btn-sm" onClick={onBack} disabled={saving}>修正する</button>
       </div>
     </div>
   )
@@ -76,20 +113,27 @@ export function StudentEnrollmentsPage({ password }) {
   const [selectedId, setSelectedId] = useState('')
   const [detail, setDetail] = useState(null)
   const [enrollmentForm, setEnrollmentForm] = useState(null)
+  const [enrollmentReview, setEnrollmentReview] = useState(false)
   const [overrideForm, setOverrideForm] = useState(null)
+  const [removeTarget, setRemoveTarget] = useState(null)
+  const [removeReason, setRemoveReason] = useState('')
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
+  const [messageTone, setMessageTone] = useState('info')
 
-  useEffect(() => {
-    Promise.all([
+  async function loadAll() {
+    const [s, p, f] = await Promise.all([
       callAdminApi(password, 'list_students'),
       callAdminApi(password, 'list_programs'),
       callAdminApi(password, 'list_features'),
-    ]).then(([s, p, f]) => {
-      setStudents(s)
-      setPrograms(p)
-      setFeatures(f)
-    })
+    ])
+    setStudents(s)
+    setPrograms(p)
+    setFeatures(f)
+  }
+
+  useEffect(() => {
+    loadAll()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -101,15 +145,21 @@ export function StudentEnrollmentsPage({ password }) {
   function handleSelect(id) {
     setSelectedId(id)
     setEnrollmentForm(null)
+    setEnrollmentReview(false)
     setOverrideForm(null)
+    setRemoveTarget(null)
     setMessage('')
     if (id) loadDetail(id)
     else setDetail(null)
   }
 
+  function showMessage(text, tone) {
+    setMessage(text)
+    setMessageTone(tone)
+  }
+
   async function handleSaveEnrollment() {
     setSaving(true)
-    setMessage('')
     try {
       await callAdminApi(password, 'student_enrollment_set', {
         id: enrollmentForm.id ?? undefined,
@@ -118,46 +168,57 @@ export function StudentEnrollmentsPage({ password }) {
         status: enrollmentForm.status,
         startsAt: enrollmentForm.startsAt || null,
         endsAt: enrollmentForm.endsAt || null,
+        reason: enrollmentForm.reason,
         notes: enrollmentForm.notes || null,
       })
       setEnrollmentForm(null)
-      await loadDetail(selectedId)
+      setEnrollmentReview(false)
+      await Promise.all([loadDetail(selectedId), loadAll()])
+      showMessage('受講プログラムを保存しました。', 'success')
     } catch (err) {
-      setMessage(err.message || '保存に失敗しました。')
+      showMessage(err.message || '保存に失敗しました。', 'error')
     }
     setSaving(false)
   }
 
   async function handleSaveOverride() {
     setSaving(true)
-    setMessage('')
     try {
       await callAdminApi(password, 'student_feature_override_set', {
         studentId: selectedId,
         featureId: overrideForm.featureId,
         isEnabled: overrideForm.isEnabled,
-        reason: overrideForm.reason || null,
+        reason: overrideForm.reason,
         expiresAt: overrideForm.expiresAt ? new Date(overrideForm.expiresAt).toISOString() : null,
       })
       setOverrideForm(null)
-      await loadDetail(selectedId)
+      await Promise.all([loadDetail(selectedId), loadAll()])
+      showMessage('個別設定を保存しました。', 'success')
     } catch (err) {
-      setMessage(err.message || '保存に失敗しました。')
+      showMessage(err.message || '保存に失敗しました。', 'error')
     }
     setSaving(false)
   }
 
-  async function handleRemoveOverride(featureId) {
-    if (!confirm('この個別設定を解除しますか?(プログラム標準の権限に戻ります)')) return
+  async function handleConfirmRemoveOverride() {
+    setSaving(true)
     try {
-      await callAdminApi(password, 'student_feature_override_remove', { studentId: selectedId, featureId })
-      await loadDetail(selectedId)
+      await callAdminApi(password, 'student_feature_override_remove', {
+        studentId: selectedId, featureId: removeTarget.feature_id, reason: removeReason || null,
+      })
+      setRemoveTarget(null)
+      setRemoveReason('')
+      await Promise.all([loadDetail(selectedId), loadAll()])
+      showMessage('個別設定を解除しました。', 'success')
     } catch (err) {
-      alert(err.message || '解除に失敗しました。')
+      showMessage(err.message || '解除に失敗しました。', 'error')
     }
+    setSaving(false)
   }
 
   if (students === null) return <p className="empty-state">読み込み中...</p>
+
+  const selectedStudent = students.find((s) => s.id === selectedId)
 
   return (
     <>
@@ -167,25 +228,54 @@ export function StudentEnrollmentsPage({ password }) {
       </div>
 
       <div className="card">
-        <div className="form-group">
-          <label htmlFor="student-select">生徒</label>
-          <select id="student-select" value={selectedId} onChange={(e) => handleSelect(e.target.value)}>
-            <option value="">選択してください</option>
-            {students.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.name}{s.current_program_name ? `(現在: ${s.current_program_name})` : ''}
-              </option>
-            ))}
-          </select>
+        <div className="table-wrap">
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>氏名</th><th>志望校</th><th>現在プログラム</th><th>ステータス</th>
+                <th>開始日</th><th>終了日</th><th>有効機能数</th><th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {students.map((s) => (
+                <tr key={s.id} style={selectedId === s.id ? { background: 'rgba(201,161,90,0.08)' } : undefined}>
+                  <td>{s.name}</td>
+                  <td>{s.target_university || '-'}</td>
+                  <td>{s.current_program_name || '未設定'}</td>
+                  <td>{s.current_program_status ? (STATUS_LABEL[s.current_program_status] ?? s.current_program_status) : '-'}</td>
+                  <td>{s.current_program_starts_at ?? '-'}</td>
+                  <td>{s.current_program_ends_at ?? '-'}</td>
+                  <td>{s.enabled_feature_count}</td>
+                  <td>
+                    <button className="btn btn-outline btn-sm" onClick={() => handleSelect(s.id)}>
+                      {selectedId === s.id ? '選択中' : '詳細'}
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </div>
 
-      {message && <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: 16 }}>{message}</p>}
+      {message && (
+        <p
+          role={messageTone === 'error' ? 'alert' : 'status'}
+          style={{
+            fontSize: '0.85rem', marginBottom: 16, padding: '10px 14px', borderRadius: 10,
+            background: messageTone === 'error' ? 'rgba(179,38,30,0.08)' : 'rgba(3,120,64,0.08)',
+            color: messageTone === 'error' ? '#b3261e' : '#037840',
+            border: `1px solid ${messageTone === 'error' ? 'rgba(179,38,30,0.3)' : 'rgba(3,120,64,0.3)'}`,
+          }}
+        >
+          {message}
+        </p>
+      )}
 
-      {detail && (
+      {detail && selectedStudent && (
         <>
           <div className="card">
-            <h2 style={{ fontSize: '1.05rem', marginBottom: 12 }}>受講プログラム(履歴含む)</h2>
+            <h2 style={{ fontSize: '1.05rem', marginBottom: 4 }}>{selectedStudent.name} さんの受講プログラム(履歴含む)</h2>
             {detail.enrollments.length === 0 ? (
               <p className="empty-state">受講プログラムがまだ登録されていません。</p>
             ) : (
@@ -212,14 +302,23 @@ export function StudentEnrollmentsPage({ password }) {
             )}
             {enrollmentForm ? (
               <div style={{ marginTop: 16 }}>
-                <EnrollmentForm
-                  programs={programs}
-                  form={enrollmentForm}
-                  onChange={setEnrollmentForm}
-                  onSave={handleSaveEnrollment}
-                  onCancel={() => setEnrollmentForm(null)}
-                  saving={saving}
-                />
+                {enrollmentReview ? (
+                  <EnrollmentConfirm
+                    programs={programs}
+                    form={enrollmentForm}
+                    onConfirm={handleSaveEnrollment}
+                    onBack={() => setEnrollmentReview(false)}
+                    saving={saving}
+                  />
+                ) : (
+                  <EnrollmentForm
+                    programs={programs}
+                    form={enrollmentForm}
+                    onChange={setEnrollmentForm}
+                    onReview={() => setEnrollmentReview(true)}
+                    onCancel={() => { setEnrollmentForm(null); setEnrollmentReview(false) }}
+                  />
+                )}
               </div>
             ) : (
               <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
@@ -235,10 +334,11 @@ export function StudentEnrollmentsPage({ password }) {
                       status: detail.enrollments[0].status,
                       startsAt: detail.enrollments[0].starts_at ?? '',
                       endsAt: detail.enrollments[0].ends_at ?? '',
+                      reason: '',
                       notes: detail.enrollments[0].notes ?? '',
                     })}
                   >
-                    最新の受講プログラムを編集(変更理由必須)
+                    最新の受講プログラムを編集
                   </button>
                 )}
               </div>
@@ -255,11 +355,31 @@ export function StudentEnrollmentsPage({ password }) {
                   <span>
                     {o.features?.name}: <strong>{o.is_enabled ? '許可' : '停止'}</strong>
                     {o.reason && ` (${o.reason})`}
-                    {o.expires_at && ` ・期限 ${new Date(o.expires_at).toLocaleDateString('ja-JP')}`}
+                    {o.expires_at && (
+                      <> ・期限 {new Date(o.expires_at).toLocaleDateString('ja-JP')}{isExpired(o.expires_at) && '(期限切れ・無効)'}</>
+                    )}
                   </span>
-                  <button className="btn btn-outline btn-sm" onClick={() => handleRemoveOverride(o.feature_id)}>
-                    解除
-                  </button>
+                  {removeTarget?.id === o.id ? (
+                    <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                      <input
+                        type="text"
+                        placeholder="解除理由(任意)"
+                        style={{ width: 160 }}
+                        value={removeReason}
+                        onChange={(e) => setRemoveReason(e.target.value)}
+                      />
+                      <button className="btn btn-primary btn-sm" onClick={handleConfirmRemoveOverride} disabled={saving}>
+                        {saving ? '処理中...' : '解除する'}
+                      </button>
+                      <button className="btn btn-outline btn-sm" onClick={() => { setRemoveTarget(null); setRemoveReason('') }}>
+                        キャンセル
+                      </button>
+                    </div>
+                  ) : (
+                    <button className="btn btn-outline btn-sm" onClick={() => setRemoveTarget(o)}>
+                      解除
+                    </button>
+                  )}
                 </div>
               ))
             )}
@@ -324,13 +444,14 @@ export function StudentEnrollmentsPage({ password }) {
               <div className="table-wrap">
                 <table className="data-table">
                   <thead>
-                    <tr><th>日時</th><th>操作</th><th>詳細</th></tr>
+                    <tr><th>日時</th><th>操作</th><th>理由</th><th>詳細</th></tr>
                   </thead>
                   <tbody>
                     {detail.auditLog.map((l) => (
                       <tr key={l.id}>
                         <td>{new Date(l.created_at).toLocaleString('ja-JP')}</td>
                         <td>{ACTION_LABEL[l.action] ?? l.action}</td>
+                        <td style={{ fontSize: '0.82rem' }}>{l.reason ?? '-'}</td>
                         <td style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>{JSON.stringify(l.detail)}</td>
                       </tr>
                     ))}
