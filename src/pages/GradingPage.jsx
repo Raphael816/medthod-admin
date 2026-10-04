@@ -94,8 +94,13 @@ export function GradingPage({ password }) {
   const [message, setMessage] = useState('')
 
   async function load() {
-    const data = await callAdminApi(password, 'list_attempts_for_review')
-    setAttempts(data)
+    try {
+      const data = await callAdminApi(password, 'list_attempts_for_review')
+      setAttempts(data)
+    } catch (err) {
+      setMessage(err.message || '読み込みに失敗しました。')
+      setAttempts([])
+    }
   }
 
   useEffect(() => {

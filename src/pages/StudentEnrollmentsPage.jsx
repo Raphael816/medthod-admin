@@ -122,14 +122,20 @@ export function StudentEnrollmentsPage({ password }) {
   const [messageTone, setMessageTone] = useState('info')
 
   async function loadAll() {
-    const [s, p, f] = await Promise.all([
-      callAdminApi(password, 'list_students'),
-      callAdminApi(password, 'list_programs'),
-      callAdminApi(password, 'list_features'),
-    ])
-    setStudents(s)
-    setPrograms(p)
-    setFeatures(f)
+    try {
+      const [s, p, f] = await Promise.all([
+        callAdminApi(password, 'list_students'),
+        callAdminApi(password, 'list_programs'),
+        callAdminApi(password, 'list_features'),
+      ])
+      setStudents(s)
+      setPrograms(p)
+      setFeatures(f)
+    } catch (err) {
+      setMessage(err.message || '読み込みに失敗しました。')
+      setMessageTone('error')
+      setStudents([])
+    }
   }
 
   useEffect(() => {

@@ -36,16 +36,21 @@ export function PracticeSetsAdminPage({ password }) {
   const [message, setMessage] = useState('')
 
   async function loadList() {
-    const [setRows, uniRows, questionRows, studentRows] = await Promise.all([
-      callAdminApi(password, 'practice_sets_list'),
-      callAdminApi(password, 'list_university_profiles'),
-      callAdminApi(password, 'questions_list'),
-      callAdminApi(password, 'list_students'),
-    ])
-    setSets(setRows)
-    setUniversities(uniRows)
-    setQuestions(questionRows)
-    setStudents(studentRows)
+    try {
+      const [setRows, uniRows, questionRows, studentRows] = await Promise.all([
+        callAdminApi(password, 'practice_sets_list'),
+        callAdminApi(password, 'list_university_profiles'),
+        callAdminApi(password, 'questions_list'),
+        callAdminApi(password, 'list_students'),
+      ])
+      setSets(setRows)
+      setUniversities(uniRows)
+      setQuestions(questionRows)
+      setStudents(studentRows)
+    } catch (err) {
+      setMessage(err.message || '読み込みに失敗しました。')
+      setSets([])
+    }
   }
 
   useEffect(() => {
