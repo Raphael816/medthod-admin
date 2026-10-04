@@ -10,6 +10,8 @@ import { VideosAdminPage } from './pages/VideosAdminPage'
 import { QuestionsAdminPage } from './pages/QuestionsAdminPage'
 import { ProgramsAdminPage } from './pages/ProgramsAdminPage'
 import { StudentEnrollmentsPage } from './pages/StudentEnrollmentsPage'
+import { PracticeSetsAdminPage } from './pages/PracticeSetsAdminPage'
+import { GradingPage } from './pages/GradingPage'
 
 function App() {
   const [password, setPassword] = useState(() => sessionStorage.getItem('admin_password'))
@@ -37,6 +39,8 @@ function App() {
     materials: <AdminMaterialsPage password={password} />,
     videos: <VideosAdminPage password={password} />,
     questions: <QuestionsAdminPage password={password} />,
+    practiceSets: <PracticeSetsAdminPage password={password} />,
+    grading: <GradingPage password={password} />,
   }
 
   return (

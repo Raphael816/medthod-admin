@@ -10,6 +10,8 @@ const NAV = [
   { key: 'materials', label: '教材', shape: 'tetrahedron' },
   { key: 'videos', label: '動画', shape: 'cylinder' },
   { key: 'questions', label: '確認問題', shape: 'cone' },
+  { key: 'practiceSets', label: '演習セット管理', shape: 'icosahedron' },
+  { key: 'grading', label: '採点', shape: 'octahedron' },
 ]
 
 export function AdminShell({ current, onNavigate, onLogout, children }) {
