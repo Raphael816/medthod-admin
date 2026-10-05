@@ -12,6 +12,7 @@ const NAV = [
   { key: 'questions', label: '確認問題', shape: 'cone' },
   { key: 'practiceSets', label: '演習セット管理', shape: 'icosahedron' },
   { key: 'grading', label: '採点', shape: 'octahedron' },
+  { key: 'siteAdmin', label: 'HP管理', shape: 'torus' },
 ]
 
 export function AdminShell({ current, onNavigate, onLogout, children }) {

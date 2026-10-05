@@ -12,6 +12,7 @@ import { ProgramsAdminPage } from './pages/ProgramsAdminPage'
 import { StudentEnrollmentsPage } from './pages/StudentEnrollmentsPage'
 import { PracticeSetsAdminPage } from './pages/PracticeSetsAdminPage'
 import { GradingPage } from './pages/GradingPage'
+import { SiteAdminPage } from './pages/SiteAdminPage'
 
 function App() {
   const [password, setPassword] = useState(() => sessionStorage.getItem('admin_password'))
@@ -41,6 +42,7 @@ function App() {
     questions: <QuestionsAdminPage password={password} />,
     practiceSets: <PracticeSetsAdminPage password={password} />,
     grading: <GradingPage password={password} />,
+    siteAdmin: <SiteAdminPage password={password} />,
   }
 
   return (
